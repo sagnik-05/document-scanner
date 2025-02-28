@@ -2,7 +2,6 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const multer = require('multer');
 const { initDatabase } = require('./database/init.js');
 
 // Initialize express app
@@ -11,18 +10,6 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize database
 initDatabase();
-
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'storage/documents')
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname)
-    }
-});
-
-const upload = multer({ storage: storage });
 
 // Middleware
 app.use(express.json());
@@ -41,12 +28,19 @@ try {
     const userRoutes = require('./routes/user.routes.js');
     const scannerRoutes = require('./routes/scanner.routes.js');
     const adminRoutes = require('./routes/admin.routes.js');
+    const creditRoutes = require('./routes/credit.routes');
+    const analyticsRoutes = require('./routes/analytics.routes');
+    const documentRoutes = require('./routes/document.routes');
+
 
     // Route middlewares
     app.use('/api/auth', authRoutes);
     app.use('/api/user', userRoutes);
     app.use('/api/scanner', scannerRoutes);
     app.use('/api/admin', adminRoutes);
+    app.use('/api/credits', creditRoutes);
+    app.use('/api/analytics', analyticsRoutes);
+    app.use('/api/documents', documentRoutes);
 } catch (error) {
     console.error('Error loading routes:', error);
 }

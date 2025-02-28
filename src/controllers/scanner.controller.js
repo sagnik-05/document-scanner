@@ -1,7 +1,8 @@
 // controllers/scanner.controller.js
-const { db } = require('../database/init');
 const fs = require('fs').promises;
 const path = require('path');
+const { db } = require('../database/init');
+const CreditManager = require('../utils/creditManager');
 
 class ScannerController {
     static async scanDocument(req, res) {
@@ -12,23 +13,18 @@ class ScannerController {
 
             const userId = req.userData.userId;
 
-            // Check if user has enough credits
-            const user = await new Promise((resolve, reject) => {
-                db.get('SELECT credits FROM users WHERE id = ?', [userId], (err, row) => {
-                    if (err) reject(err);
-                    resolve(row);
-                });
-            });
-
-            if (!user || user.credits <= 0) {
+            // Check credits
+            const hasCredits = await CreditManager.deductCredit(userId);
+            if (!hasCredits) {
                 return res.status(403).json({ error: 'Insufficient credits' });
             }
 
             // Read file content
-            const content = await fs.readFile(req.file.path, 'utf8');
+            const filePath = req.file.path;
+            const content = await fs.readFile(filePath, 'utf8');
 
-            // Store document in database
-            const docResult = await new Promise((resolve, reject) => {
+            // Store document
+            const docId = await new Promise((resolve, reject) => {
                 db.run(
                     'INSERT INTO documents (user_id, filename, content) VALUES (?, ?, ?)',
                     [userId, req.file.filename, content],
@@ -39,23 +35,14 @@ class ScannerController {
                 );
             });
 
-            // Deduct credit
-            await new Promise((resolve, reject) => {
-                db.run(
-                    'UPDATE users SET credits = credits - 1 WHERE id = ?',
-                    [userId],
-                    (err) => {
-                        if (err) reject(err);
-                        resolve();
-                    }
-                );
-            });
+            // Find similar documents
+            const matches = await ScannerController.findSimilarDocuments(content, userId, docId);
 
-            // Record scan in scans table
+            // Record scan
             await new Promise((resolve, reject) => {
                 db.run(
                     'INSERT INTO scans (user_id, document_id) VALUES (?, ?)',
-                    [userId, docResult],
+                    [userId, docId],
                     (err) => {
                         if (err) reject(err);
                         resolve();
@@ -63,98 +50,101 @@ class ScannerController {
                 );
             });
 
-            // Find matching documents
-            const matches = await new Promise((resolve, reject) => {
-                db.all(
-                    `SELECT id, filename, content 
-                     FROM documents 
-                     WHERE user_id = ? AND id != ?`,
-                    [userId, docResult],
-                    (err, rows) => {
-                        if (err) reject(err);
-                        resolve(rows);
-                    }
-                );
-            });
-
-            // Simple text similarity check
-            const similarDocs = matches.map(doc => ({
-                id: doc.id,
-                filename: doc.filename,
-                similarity: ScannerController.calculateSimilarity(content, doc.content)
-            })).filter(doc => doc.similarity > 0.3) // 30% similarity threshold
-              .sort((a, b) => b.similarity - a.similarity);
-
             res.json({
                 message: 'Document scanned successfully',
-                documentId: docResult,
-                matches: similarDocs
+                documentId: docId,
+                matches: matches
             });
 
         } catch (error) {
-            console.error(error);
+            console.error('Scan error:', error);
             res.status(500).json({ error: 'Error processing document' });
         }
     }
 
-    static calculateSimilarity(text1, text2) {
-        // Simple word overlap similarity
-        const words1 = new Set(text1.toLowerCase().split(/\W+/));
-        const words2 = new Set(text2.toLowerCase().split(/\W+/));
-        const intersection = new Set([...words1].filter(x => words2.has(x)));
-        const union = new Set([...words1, ...words2]);
+    static async findSimilarDocuments(content, userId, excludeDocId) {
+        const words = content.toLowerCase().split(/\W+/);
+        const wordSet = new Set(words);
+
+        return new Promise((resolve, reject) => {
+            db.all(
+                `SELECT id, filename, content 
+                 FROM documents 
+                 WHERE user_id = ? AND id != ?`,
+                [userId, excludeDocId],
+                (err, documents) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    const matches = documents.map(doc => {
+                        const docWords = doc.content.toLowerCase().split(/\W+/);
+                        const docWordSet = new Set(docWords);
+                        const similarity = ScannerController.calculateSimilarity(wordSet, docWordSet);
+
+                        return {
+                            id: doc.id,
+                            filename: doc.filename,
+                            similarity: similarity
+                        };
+                    });
+
+                    // Filter and sort matches
+                    const significantMatches = matches
+                        .filter(match => match.similarity > 0.3)
+                        .sort((a, b) => b.similarity - a.similarity)
+                        .slice(0, 5);
+
+                    resolve(significantMatches);
+                }
+            );
+        });
+    }
+
+    static calculateSimilarity(set1, set2) {
+        const intersection = new Set([...set1].filter(x => set2.has(x)));
+        const union = new Set([...set1, ...set2]);
         return intersection.size / union.size;
     }
 
-    static async getMatches(req, res) {
-        try {
-            const { docId } = req.params;
-            const userId = req.userData.userId;
-
-            const document = await new Promise((resolve, reject) => {
-                db.get(
-                    'SELECT * FROM documents WHERE id = ? AND user_id = ?',
-                    [docId, userId],
-                    (err, row) => {
-                        if (err) reject(err);
-                        resolve(row);
-                    }
-                );
-            });
-
-            if (!document) {
-                return res.status(404).json({ error: 'Document not found' });
-            }
-
-            // Get matches (implement similar logic as in scanDocument)
-            // ...
-
-            res.json({ matches: [] }); // Implement matching logic
-        } catch (error) {
-            res.status(500).json({ error: 'Error fetching matches' });
-        }
-    }
-
-    static async getScanHistory(req, res) {
+    static async getDocumentHistory(req, res) {
         try {
             const userId = req.userData.userId;
-            
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const offset = (page - 1) * limit;
+
             db.all(
-                `SELECT s.scan_date, d.filename 
-                 FROM scans s 
-                 JOIN documents d ON s.document_id = d.id 
-                 WHERE s.user_id = ? 
-                 ORDER BY s.scan_date DESC`,
-                [userId],
-                (err, rows) => {
+                `SELECT 
+                    d.id,
+                    d.filename,
+                    d.upload_date,
+                    COUNT(s.id) as scan_count
+                FROM documents d
+                LEFT JOIN scans s ON d.id = s.document_id
+                WHERE d.user_id = ?
+                GROUP BY d.id
+                ORDER BY d.upload_date DESC
+                LIMIT ? OFFSET ?`,
+                [userId, limit, offset],
+                (err, documents) => {
                     if (err) {
                         return res.status(500).json({ error: 'Database error' });
                     }
-                    res.json({ history: rows });
+
+                    res.json({
+                        documents,
+                        pagination: {
+                            page,
+                            limit,
+                            hasMore: documents.length === limit
+                        }
+                    });
                 }
             );
         } catch (error) {
-            res.status(500).json({ error: 'Error fetching scan history' });
+            res.status(500).json({ error: error.message });
         }
     }
 }

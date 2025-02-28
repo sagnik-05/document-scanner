@@ -44,6 +44,50 @@ const initDatabase = () => {
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(document_id) REFERENCES documents(id)
     )`);
+
+    // Credit usage tracking
+    db.run(`CREATE TABLE IF NOT EXISTS credit_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        action TEXT,
+        amount INTEGER,
+        usage_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+
+    // Analytics tracking
+    db.run(`CREATE TABLE IF NOT EXISTS analytics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        action_type TEXT,
+        action_data TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+    // Documents table
+    db.run(`CREATE TABLE IF NOT EXISTS documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        filename TEXT NOT NULL,
+        original_name TEXT,
+        file_path TEXT,
+        file_size INTEGER,
+        content TEXT,
+        mime_type TEXT,
+        upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+
+    // Document matches table
+    db.run(`CREATE TABLE IF NOT EXISTS document_matches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id INTEGER,
+        matched_document_id INTEGER,
+        similarity_score REAL,
+        match_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(document_id) REFERENCES documents(id),
+        FOREIGN KEY(matched_document_id) REFERENCES documents(id)
+    )`);
   });
 };
 
