@@ -132,8 +132,9 @@ class UploadManager {
     handleUploadSuccess(response) {
         this.showMessage('Document uploaded successfully!', 'success');
         
+        // Refresh dashboard immediately after successful upload
         if (window.DashboardManager) {
-            window.DashboardManager.loadDocuments();
+            window.DashboardManager.refreshDashboard();  // New method call
         }
 
         if (response.matches && response.matches.length > 0) {

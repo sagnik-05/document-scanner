@@ -1,7 +1,9 @@
 // controllers/document.controller.js
 const { db } = require('../database/init');
-const fs = require('fs').promises;
-
+const fs = require('fs');
+const fsPromises = require('fs').promises;
+const jwt = require('jsonwebtoken');
+const path = require('path')
 class DocumentController {
     static async getAllDocuments(req, res) {
         try {
@@ -64,13 +66,13 @@ class DocumentController {
         try {
             const { id } = req.params;
             const userId = req.userData.userId;
-
+    
             db.get(
                 `SELECT id, filename, content, upload_date 
                  FROM documents 
                  WHERE id = ? AND user_id = ?`,
                 [id, userId],
-                async (err, document) => {
+                (err, document) => {
                     if (err) {
                         console.error('Database error:', err);
                         return res.status(500).json({ error: 'Database error' });
@@ -78,16 +80,8 @@ class DocumentController {
                     if (!document) {
                         return res.status(404).json({ error: 'Document not found' });
                     }
-
-                    // If document exists, send it back
-                    res.json({
-                        document: {
-                            id: document.id,
-                            filename: document.filename,
-                            content: document.content,
-                            uploadDate: document.upload_date
-                        }
-                    });
+    
+                    res.json({ document });
                 }
             );
         } catch (error) {
@@ -95,6 +89,7 @@ class DocumentController {
             res.status(500).json({ error: 'Server error' });
         }
     }
+    
 
     static async deleteDocument(req, res) {
         try {
@@ -136,6 +131,70 @@ class DocumentController {
             res.status(500).json({ error: 'Server error' });
         }
         
+    }
+    static async viewDocument(req, res) {
+        try {
+            let token = req.query.token;
+            
+            if (!token) {
+                return res.status(401).json({ error: 'No token provided' });
+            }
+
+            let userId;
+            try {
+                // Verify the token
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.userId;
+                
+                // Log for debugging
+                console.log('Token decoded successfully:', decoded);
+            } catch (error) {
+                console.error('Token verification error:', error);
+                return res.status(401).json({ error: 'Invalid token' });
+            }
+
+            // Get document
+            db.get(
+                'SELECT * FROM documents WHERE id = ? AND user_id = ?',
+                [req.params.id, userId],
+                async (err, document) => {
+                    if (err) {
+                        console.error('Database error:', err);
+                        return res.status(500).json({ error: 'Database error' });
+                    }
+                    
+                    if (!document) {
+                        return res.status(404).json({ error: 'Document not found' });
+                    }
+
+                    try {
+                        const filePath = path.join(__dirname, '../../storage/documents', document.filename);
+                        
+                        if (!fs.existsSync(filePath)) {
+                            return res.status(404).json({ error: 'File not found' });
+                        }
+
+                        // For PDF files
+                        if (document.filename.toLowerCase().endsWith('.pdf')) {
+                            res.setHeader('Content-Type', 'application/pdf');
+                            res.setHeader('Content-Disposition', `inline; filename="${document.filename}"`);
+                            const fileStream = fs.createReadStream(filePath);
+                            fileStream.pipe(res);
+                        } else {
+                            // For text files
+                            const content = await fs.promises.readFile(filePath, 'utf8');
+                            res.json({ document: { ...document, content } });
+                        }
+                    } catch (error) {
+                        console.error('File reading error:', error);
+                        res.status(500).json({ error: 'Error reading file' });
+                    }
+                }
+            );
+        } catch (error) {
+            console.error('View document error:', error);
+            res.status(500).json({ error: 'Server error' });
+        }
     }
 }
 

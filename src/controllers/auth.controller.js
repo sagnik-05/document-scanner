@@ -1,41 +1,92 @@
+// controllers/auth.controller.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const UserModel = require('../models/user.model');
+const { db } = require('../database/init');  // Add this line to import database
 
 class AuthController {
-  static async register(req, res) {
-    try {
-      const { username, password } = req.body;
-      const hashedPassword = await bcrypt.hash(password, 10);
-      
-      const userId = await UserModel.create(username, hashedPassword);
-      
-      res.status(201).json({ message: 'User created successfully' });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    static async login(req, res) {
+        try {
+            const { username, password } = req.body;
+            
+            db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
+                if (err) {
+                    console.error('Database error:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                
+                if (!user) {
+                    return res.status(401).json({ error: 'Authentication failed' });
+                }
+
+                const isValidPassword = await bcrypt.compare(password, user.password);
+                
+                if (!isValidPassword) {
+                    return res.status(401).json({ error: 'Authentication failed' });
+                }
+
+                const token = jwt.sign(
+                    { 
+                        userId: user.id,
+                        username: user.username,
+                        role: user.role 
+                    },
+                    process.env.JWT_SECRET,
+                    { expiresIn: '24h' }
+                );
+
+                res.json({
+                    token,
+                    userId: user.id,
+                    username: user.username,
+                    role: user.role
+                });
+            });
+        } catch (error) {
+            console.error('Login error:', error);
+            res.status(500).json({ error: 'Login failed' });
+        }
     }
-  }
 
-  static async login(req, res) {
-    try {
-      const { username, password } = req.body;
-      const user = await UserModel.findByUsername(username);
-      
-      if (!user || !await bcrypt.compare(password, user.password)) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+    static async register(req, res) {
+        try {
+            const { username, password } = req.body;
 
-      const token = jwt.sign(
-        { userId: user.id, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
+            // Check if username already exists
+            db.get('SELECT id FROM users WHERE username = ?', [username], async (err, user) => {
+                if (err) {
+                    console.error('Database error:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
 
-      res.json({ token });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+                if (user) {
+                    return res.status(400).json({ error: 'Username already exists' });
+                }
+
+                // Hash password
+                const hashedPassword = await bcrypt.hash(password, 10);
+
+                // Insert new user
+                db.run(
+                    'INSERT INTO users (username, password, role, credits) VALUES (?, ?, ?, ?)',
+                    [username, hashedPassword, 'user', 20],
+                    function(err) {
+                        if (err) {
+                            console.error('Registration error:', err);
+                            return res.status(500).json({ error: 'Registration failed' });
+                        }
+
+                        res.status(201).json({
+                            message: 'User registered successfully',
+                            userId: this.lastID
+                        });
+                    }
+                );
+            });
+        } catch (error) {
+            console.error('Registration error:', error);
+            res.status(500).json({ error: 'Registration failed' });
+        }
     }
-  }
 }
 
 module.exports = AuthController;

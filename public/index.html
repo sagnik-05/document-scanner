@@ -1,11 +1,10 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Scanner</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <!-- Navigation -->
@@ -13,9 +12,10 @@
         <div class="nav-brand">Document Scanner</div>
         <div class="nav-links">
             <div class="nav-item" id="navHome">Home</div>
-            <div class="nav-item" id="navDashboard">Dashboard</div>
+            <div class="nav-item hidden" id="navDashboard">Dashboard</div>
             <div class="nav-item" id="navLogin">Login</div>
             <div class="nav-item" id="navRegister">Register</div>
+            <div class="nav-item hidden" id="navLogout">Logout</div>
         </div>
     </nav>
 
@@ -23,24 +23,8 @@
     <main id="mainContent">
         <!-- Auth Forms -->
         <div id="authForms" class="container">
-            <!-- Login Form -->
-            <div id="loginForm" class="auth-form">
-                <h2>Login</h2>
-                <form id="loginFormElement">
-                    <div class="form-group">
-                        <label for="loginUsername">Username</label>
-                        <input type="text" id="loginUsername" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="loginPassword">Password</label>
-                        <input type="password" id="loginPassword" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Login</button>
-                </form>
-            </div>
-
-            <!-- Register Form -->
-            <div id="registerForm" class="auth-form hidden">
+            <!-- Register Form (Shown by default) -->
+            <div id="registerForm" class="auth-form">
                 <h2>Register</h2>
                 <form id="registerFormElement">
                     <div class="form-group">
@@ -52,12 +36,39 @@
                         <input type="password" id="registerPassword" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Register</button>
+                    <p class="form-switch">
+                        Already have an account? <a href="#" id="switchToLogin">Login here</a>
+                    </p>
+                </form>
+            </div>
+
+            <!-- Login Form (Initially Hidden) -->
+            <div id="loginForm" class="auth-form hidden">
+                <h2>Login</h2>
+                <form id="loginFormElement">
+                    <div class="form-group">
+                        <label for="loginUsername">Username</label>
+                        <input type="text" id="loginUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <p class="form-switch">
+                        Don't have an account? <a href="#" id="switchToRegister">Register here</a>
+                    </p>
                 </form>
             </div>
         </div>
 
         <!-- Dashboard (Initially Hidden) -->
         <div id="dashboard" class="container hidden">
+            <!-- Welcome Message -->
+            <div class="welcome-section">
+                <h2>Welcome, <span id="userWelcome"></span>!</h2>
+            </div>
+
             <!-- Credit Info -->
             <div class="credit-info">
                 <h3>Credits Available: <span id="creditCount">0</span></h3>
@@ -85,9 +96,9 @@
     <div id="messageContainer" class="message-container"></div>
 
     <!-- Scripts -->
-    <script src="js/api.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/upload.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script src="/js/upload.js"></script>
 </body>
 </html>

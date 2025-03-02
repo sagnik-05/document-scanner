@@ -14,9 +14,12 @@ class DashboardManager {
         this.viewDocument = this.viewDocument.bind(this);
         this.deleteDocument = this.deleteDocument.bind(this);
 
+        window.DashboardManager = this;
         // Initialize
         this.bindEvents();
         this.initialize();
+
+        
     }
 
     bindEvents() {
@@ -31,12 +34,6 @@ class DashboardManager {
                 this.searchDocuments(this.searchInput.value);
             }, 300));
         }
-
-        // Make methods available globally for onclick handlers
-        window.DashboardManager = {
-            viewDocument: this.viewDocument,
-            deleteDocument: this.deleteDocument
-        };
     }
 
     async initialize() {
@@ -58,6 +55,45 @@ class DashboardManager {
         } catch (error) {
             console.error('Error loading credits:', error);
             this.showMessage('Error loading credits', 'error');
+        }
+    }
+
+    async refreshDashboard() {
+        try {
+            // Show loading state
+            this.showLoadingState();
+
+            // Refresh both credits and documents
+            await Promise.all([
+                this.loadCredits(),
+                this.loadDocuments()
+            ]);
+
+            // Hide loading state
+            this.hideLoadingState();
+        } catch (error) {
+            console.error('Refresh error:', error);
+            this.showMessage('Error refreshing dashboard', 'error');
+            this.hideLoadingState();
+        }
+    }
+
+    showLoadingState() {
+        if (this.documentsList) {
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading-indicator';
+            loadingIndicator.innerHTML = `
+                <div class="spinner"></div>
+                <p>Refreshing...</p>
+            `;
+            this.documentsList.appendChild(loadingIndicator);
+        }
+    }
+
+    hideLoadingState() {
+        const loadingIndicator = this.documentsList?.querySelector('.loading-indicator');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
         }
     }
 
@@ -87,8 +123,10 @@ class DashboardManager {
 
         documents.forEach(doc => {
             const documentElement = document.createElement('div');
-            documentElement.className = 'document-card';
+            documentElement.className = 'document-card fade-in';
             documentElement.dataset.id = doc.id;
+            
+            // Create the HTML structure
             documentElement.innerHTML = `
                 <div class="document-info">
                     <h4>${this.escapeHtml(doc.filename)}</h4>
@@ -96,17 +134,26 @@ class DashboardManager {
                     ${doc.match_count ? `<p class="match-count">Matches: ${doc.match_count}</p>` : ''}
                 </div>
                 <div class="document-actions">
-                    <button onclick="DashboardManager.viewDocument(${doc.id})" class="btn btn-secondary">
+                    <button class="btn btn-secondary view-btn">
                         <i class="fas fa-eye"></i> View
                     </button>
-                    <button onclick="DashboardManager.deleteDocument(${doc.id})" class="btn btn-error">
+                    <button class="btn btn-error delete-btn">
                         <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
             `;
+
+            // Add event listeners
+            const viewBtn = documentElement.querySelector('.view-btn');
+            const deleteBtn = documentElement.querySelector('.delete-btn');
+
+            viewBtn.addEventListener('click', () => this.viewDocument(doc.id));
+            deleteBtn.addEventListener('click', () => this.deleteDocument(doc.id));
+
             this.documentsList.appendChild(documentElement);
         });
     }
+
 
     updateCreditDisplay(credits) {
         if (this.creditCount) {
@@ -139,18 +186,39 @@ class DashboardManager {
             this.showMessage('Error viewing document', 'error');
         }
     }
-
-    showDocumentModal(document) {
+    showDocumentModal(docData) {  // Changed parameter name from 'document' to 'docData'
         const modal = document.createElement('div');
         modal.className = 'modal';
+        // Check file type based on filename
+        const isTextFile = docData.filename.toLowerCase().endsWith('.txt');
+        const isPdfFile = docData.filename.toLowerCase().endsWith('.pdf');
+        let contentHtml;
+        if (isPdfFile) {
+            const pdfUrl = API.getDocumentViewUrl(docData.id);
+            contentHtml = `
+            <div class="pdf-container">
+                <iframe 
+                    src="${pdfUrl}" 
+                    width="100%" 
+                    height="500px"
+                    style="border: none;"
+                    onerror="this.parentElement.innerHTML='<div class=\'pdf-error\'>Error loading PDF. Please try again.</div>'"
+                    onload="this.style.height = '100%'">
+                </iframe>
+            </div>
+        `;
+        } else {
+            // For text files, show content directly
+            contentHtml = `<pre class="document-content">${this.escapeHtml(docData.content)}</pre>`;
+        }
         modal.innerHTML = `
-            <div class="modal-content">
+            <div class="modal-content ${isPdfFile ? 'modal-content-pdf' : ''}">
                 <div class="modal-header">
-                    <h3>${this.escapeHtml(document.filename)}</h3>
+                    <h3>${this.escapeHtml(docData.filename)}</h3>
                     <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <pre class="document-content">${this.escapeHtml(document.content)}</pre>
+                    ${contentHtml}
                 </div>
                 <div class="modal-footer">
                     <button onclick="this.closest('.modal').remove()" class="btn btn-primary">Close</button>
@@ -165,8 +233,16 @@ class DashboardManager {
                 modal.remove();
             }
         });
-    }
 
+        // Add escape key listener
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
     async deleteDocument(docId) {
         if (!confirm('Are you sure you want to delete this document?')) {
             return;
@@ -175,7 +251,7 @@ class DashboardManager {
         try {
             await API.request(`/documents/${docId}`, { method: 'DELETE' });
             this.showMessage('Document deleted successfully', 'success');
-            await this.loadDocuments(); // Refresh the document list
+            await this.refreshDashboard();
         } catch (error) {
             console.error('Error deleting document:', error);
             this.showMessage('Error deleting document', 'error');

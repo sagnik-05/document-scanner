@@ -6,7 +6,12 @@ const DocumentController = require('../controllers/document.controller');
 const authMiddleware = require('../middleware/auth.middleware');
 
 // Apply authentication middleware
-router.use(authMiddleware);
+router.use((req, res, next) => {
+    if (req.path.endsWith('/view') && req.query.token) {
+        return next();
+    }
+    return authMiddleware(req, res, next);
+});
 
 // Get all documents
 router.get('/', DocumentController.getAllDocuments);
@@ -17,6 +22,9 @@ router.post('/upload',
     handleUploadError,
     DocumentController.uploadDocument
 );
+
+// View document (this should come before /:id to avoid conflict)
+router.get('/:id/view', DocumentController.viewDocument);
 
 // Get specific document
 router.get('/:id', DocumentController.getDocument);

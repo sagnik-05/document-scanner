@@ -406,3 +406,112 @@ body {
     background-color: #6c757d;
     color: white;
 }
+/* Add to styles.css */
+.navbar {
+    background-color: #fff;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.nav-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-item {
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.nav-item:hover {
+    background-color: var(--bg-color);
+}
+
+.nav-item.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.form-switch {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.form-switch a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.form-switch a:hover {
+    text-decoration: underline;
+}
+
+.welcome-section {
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.hidden {
+    display: none !important;
+}
+/* Add to your styles.css */
+.modal-content-pdf {
+    width: 95%;
+    max-width: 1000px;
+    height: 90vh;
+}
+
+.modal-content-pdf .modal-body {
+    height: calc(100% - 120px); /* Adjust based on your header/footer height */
+    padding: 0;
+}
+
+.modal-content-pdf iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+}
+/* Add to your styles.css */
+.modal-content-pdf {
+    width: 95%;
+    max-width: 1000px;
+    height: 90vh;
+}
+
+.modal-content-pdf .modal-body {
+    height: calc(100% - 120px);
+    padding: 0;
+    overflow: hidden;
+}
+
+.modal-content-pdf iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+}
+
+.pdf-error {
+    padding: 20px;
+    text-align: center;
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin: 10px;
+}

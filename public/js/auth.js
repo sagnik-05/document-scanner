@@ -7,8 +7,12 @@ class AuthManager {
         this.navLogin = document.getElementById('navLogin');
         this.navRegister = document.getElementById('navRegister');
         this.navDashboard = document.getElementById('navDashboard');
+        this.navLogout = document.getElementById('navLogout');
         this.authForms = document.getElementById('authForms');
         this.dashboard = document.getElementById('dashboard');
+        this.switchToLoginLink = document.getElementById('switchToLogin');
+        this.switchToRegisterLink = document.getElementById('switchToRegister');
+        this.userWelcome = document.getElementById('userWelcome');
 
         // Bind event listeners
         this.bindEvents();
@@ -20,23 +24,35 @@ class AuthManager {
         // Navigation events
         this.navLogin.addEventListener('click', () => this.showLoginForm());
         this.navRegister.addEventListener('click', () => this.showRegisterForm());
+        this.navLogout.addEventListener('click', () => this.handleLogout());
         
         // Form submission events
         this.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
         this.registerForm.addEventListener('submit', (e) => this.handleRegister(e));
 
-        // Logout event
-        document.getElementById('navLogout')?.addEventListener('click', () => this.handleLogout());
+        // Form switch events
+        this.switchToLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.showLoginForm();
+        });
+        this.switchToRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.showRegisterForm();
+        });
     }
 
     showLoginForm() {
         document.getElementById('loginForm').classList.remove('hidden');
         document.getElementById('registerForm').classList.add('hidden');
+        this.navLogin.classList.add('active');
+        this.navRegister.classList.remove('active');
     }
 
     showRegisterForm() {
         document.getElementById('loginForm').classList.add('hidden');
         document.getElementById('registerForm').classList.remove('hidden');
+        this.navLogin.classList.remove('active');
+        this.navRegister.classList.add('active');
     }
 
     async handleLogin(e) {
@@ -46,7 +62,7 @@ class AuthManager {
 
         try {
             const response = await API.login(username, password);
-            this.handleAuthSuccess(response.token);
+            this.handleAuthSuccess(response.token, username);
             this.showMessage('Login successful!', 'success');
         } catch (error) {
             this.showMessage(error.message || 'Login failed', 'error');
@@ -69,13 +85,15 @@ class AuthManager {
 
     handleLogout() {
         localStorage.removeItem('token');
+        localStorage.removeItem('username');
         this.updateUIForLoggedOutState();
         this.showMessage('Logged out successfully', 'success');
     }
 
-    handleAuthSuccess(token) {
+    handleAuthSuccess(token, username) {
         localStorage.setItem('token', token);
-        this.updateUIForLoggedInState();
+        localStorage.setItem('username', username);
+        this.updateUIForLoggedInState(username);
         // Initialize dashboard
         if (window.DashboardManager) {
             window.DashboardManager.initialize();
@@ -84,8 +102,9 @@ class AuthManager {
 
     checkAuthStatus() {
         const token = localStorage.getItem('token');
-        if (token) {
-            this.updateUIForLoggedInState();
+        const username = localStorage.getItem('username');
+        if (token && username) {
+            this.updateUIForLoggedInState(username);
             // Initialize dashboard
             if (window.DashboardManager) {
                 window.DashboardManager.initialize();
@@ -95,13 +114,16 @@ class AuthManager {
         }
     }
 
-    updateUIForLoggedInState() {
+    updateUIForLoggedInState(username) {
         this.authForms.classList.add('hidden');
         this.dashboard.classList.remove('hidden');
         this.navLogin.classList.add('hidden');
         this.navRegister.classList.add('hidden');
         this.navDashboard.classList.remove('hidden');
-        document.getElementById('navLogout')?.classList.remove('hidden');
+        this.navLogout.classList.remove('hidden');
+        if (this.userWelcome) {
+            this.userWelcome.textContent = username;
+        }
     }
 
     updateUIForLoggedOutState() {
@@ -110,7 +132,8 @@ class AuthManager {
         this.navLogin.classList.remove('hidden');
         this.navRegister.classList.remove('hidden');
         this.navDashboard.classList.add('hidden');
-        document.getElementById('navLogout')?.classList.add('hidden');
+        this.navLogout.classList.add('hidden');
+        this.showRegisterForm(); // Show register form by default
     }
 
     showMessage(message, type) {
@@ -121,7 +144,6 @@ class AuthManager {
 
         messageContainer.appendChild(messageElement);
 
-        // Remove message after 3 seconds
         setTimeout(() => {
             messageElement.remove();
         }, 3000);

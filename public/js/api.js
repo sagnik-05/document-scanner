@@ -95,5 +95,25 @@ const API = {
         return this.request(`/documents/${id}`, {
             method: 'DELETE'
         });
-    }
+    },
+    getDocumentViewUrl(id) {
+        const token = localStorage.getItem('token');
+        return `${this.baseUrl}/documents/${id}/view?token=${token}`;
+    },
+
+    async uploadDocument(formData) {
+        const token = localStorage.getItem('token');
+        return fetch(`${this.baseUrl}/documents/upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+            return response.json();
+        });
+    },
 };
