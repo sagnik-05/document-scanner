@@ -1,3 +1,4 @@
+// database/init.js
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
@@ -15,14 +16,19 @@ const initDatabase = () => {
       last_reset DATE DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // Documents table
-    db.run(`CREATE TABLE IF NOT EXISTS documents (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      filename TEXT NOT NULL,
-      content TEXT,
-      upload_date DATE DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id)
+    // Documents table with all required columns
+    db.run(`DROP TABLE IF EXISTS documents`);
+    db.run(`CREATE TABLE documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        filename TEXT NOT NULL,
+        original_name TEXT,
+        file_path TEXT,
+        file_size INTEGER,
+        content TEXT,
+        mime_type TEXT,
+        upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
     )`);
 
     // Credit requests table
@@ -64,19 +70,6 @@ const initDatabase = () => {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )`);
-    // Documents table
-    db.run(`CREATE TABLE IF NOT EXISTS documents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        filename TEXT NOT NULL,
-        original_name TEXT,
-        file_path TEXT,
-        file_size INTEGER,
-        content TEXT,
-        mime_type TEXT,
-        upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )`);
 
     // Document matches table
     db.run(`CREATE TABLE IF NOT EXISTS document_matches (
@@ -90,5 +83,10 @@ const initDatabase = () => {
     )`);
   });
 };
+
+// Error handling
+db.on('error', (err) => {
+  console.error('Database error:', err);
+});
 
 module.exports = { db, initDatabase };

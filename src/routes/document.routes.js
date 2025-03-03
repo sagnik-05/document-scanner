@@ -12,7 +12,8 @@ router.use((req, res, next) => {
     }
     return authMiddleware(req, res, next);
 });
-
+// View document route (should come before other routes with :id parameter)
+router.get('/:id/view', DocumentController.viewDocument);
 // Get all documents
 router.get('/', DocumentController.getAllDocuments);
 
@@ -22,9 +23,6 @@ router.post('/upload',
     handleUploadError,
     DocumentController.uploadDocument
 );
-
-// View document (this should come before /:id to avoid conflict)
-router.get('/:id/view', DocumentController.viewDocument);
 
 // Get specific document
 router.get('/:id', DocumentController.getDocument);

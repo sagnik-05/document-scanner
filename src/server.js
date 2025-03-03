@@ -22,6 +22,7 @@ app.use((req, res, next) => {
     next();
 });
 
+
 // Routes
 try {
     const authRoutes = require('./routes/auth.routes.js');
