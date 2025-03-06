@@ -3,7 +3,7 @@ const fs = require('fs');
 const util = require('util');
 const path = require('path');
 const { db } = require('../database/init');
-
+const CreditController = require('./credit.controller');
 // Convert fs.readFile to promise-based
 const readFileAsync = util.promisify(fs.readFile);
 
@@ -60,58 +60,113 @@ class DocumentController {
                             res.status(500).json({ error: 'Server error' });
                         }
                     }
-    static async uploadDocument(req, res) {
-        try {
-            if (!req.file) {
-                return res.status(400).json({ error: 'No file uploaded' });
-            }
-
-            const userId = req.userData.userId;
-            const filename = req.file.filename;
-            const originalName = req.file.originalname;
-            const filePath = req.file.path;
-
-            console.log('Upload details:', {
-                userId,
-                filename,
-                originalName,
-                filePath,
-                mimetype: req.file.mimetype
-            });
-
-            // Insert into database without reading the file content
-            db.run(
-                `INSERT INTO documents (
-                    user_id, 
-                    filename,
-                    original_name,
-                    upload_date
-                ) VALUES (?, ?, ?, DATETIME('now'))`,
-                [userId, filename, originalName],
-                function(err) {
-                    if (err) {
-                        console.error('Upload DB error:', err);
-                        return res.status(500).json({ error: 'Upload failed' });
+                    static async uploadDocument(req, res) {
+                        try {
+                            if (!req.file) {
+                                return res.status(400).json({ error: 'No file uploaded' });
+                            }
+                
+                            const userId = req.userData.userId;
+                            const filename = req.file.filename;
+                            const originalName = req.file.originalname;
+                            const filePath = req.file.path;
+                
+                            console.log('Upload details:', {
+                                userId,
+                                filename,
+                                originalName,
+                                filePath,
+                                mimetype: req.file.mimetype
+                            });
+                
+                            // Check and deduct credits before processing upload
+                            const hasCredits = await CreditController.deductCredit(userId);
+                            if (!hasCredits) {
+                                // Delete the uploaded file if credit check fails
+                                if (req.file && req.file.path) {
+                                    fs.unlink(req.file.path, (err) => {
+                                        if (err) console.error('Error deleting file:', err);
+                                    });
+                                }
+                                return res.status(403).json({ 
+                                    error: 'Insufficient credits. Please request more credits.' 
+                                });
+                            }
+                
+                            // Begin transaction
+                            db.serialize(() => {
+                                db.run('BEGIN TRANSACTION');
+                
+                                // Insert document
+                                db.run(
+                                    `INSERT INTO documents (
+                                        user_id, 
+                                        filename,
+                                        original_name,
+                                        upload_date
+                                    ) VALUES (?, ?, ?, DATETIME('now'))`,
+                                    [userId, filename, originalName],
+                                    function(err) {
+                                        if (err) {
+                                            console.error('Upload DB error:', err);
+                                            db.run('ROLLBACK');
+                                            // Clean up file on database error
+                                            fs.unlink(req.file.path, () => {});
+                                            return res.status(500).json({ error: 'Upload failed' });
+                                        }
+                
+                                        const documentId = this.lastID;
+                
+                                        // Record scan in scans table
+                                        db.run(
+                                            `INSERT INTO scans (
+                                                user_id,
+                                                document_id,
+                                                scan_date
+                                            ) VALUES (?, ?, DATETIME('now'))`,
+                                            [userId, documentId],
+                                            (err) => {
+                                                if (err) {
+                                                    console.error('Scan record error:', err);
+                                                    db.run('ROLLBACK');
+                                                    // Clean up file on database error
+                                                    fs.unlink(req.file.path, () => {});
+                                                    return res.status(500).json({ error: 'Upload failed' });
+                                                }
+                
+                                                // Commit transaction if everything succeeded
+                                                db.run('COMMIT');
+                
+                                                // Get updated credit count
+                                                db.get(
+                                                    'SELECT credits FROM users WHERE id = ?',
+                                                    [userId],
+                                                    (err, user) => {
+                                                        res.json({
+                                                            message: 'Document uploaded successfully',
+                                                            documentId: documentId,
+                                                            filename: filename,
+                                                            remainingCredits: user ? user.credits : 0
+                                                        });
+                                                    }
+                                                );
+                                            }
+                                        );
+                                    }
+                                );
+                            });
+                
+                        } catch (error) {
+                            console.error('Upload error:', error);
+                            // Clean up file on error
+                            if (req.file && req.file.path) {
+                                fs.unlink(req.file.path, (err) => {
+                                    if (err) console.error('Error deleting file after failed upload:', err);
+                                });
+                            }
+                            res.status(500).json({ error: 'Upload failed' });
+                        }
                     }
-
-                    res.json({
-                        message: 'Document uploaded successfully',
-                        documentId: this.lastID,
-                        filename: filename
-                    });
-                }
-            );
-        } catch (error) {
-            console.error('Upload error:', error);
-            // If there was an error, try to clean up the uploaded file
-            if (req.file && req.file.path) {
-                fs.unlink(req.file.path, (err) => {
-                    if (err) console.error('Error deleting file after failed upload:', err);
-                });
-            }
-            res.status(500).json({ error: 'Upload failed' });
-        }
-    }
 
     static async viewDocument(req, res) {
         try {
