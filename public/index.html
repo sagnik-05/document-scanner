@@ -11,11 +11,13 @@
     <nav class="navbar">
         <div class="nav-brand">Document Scanner</div>
         <div class="nav-links">
-            <div class="nav-item" id="navHome">Home</div>
+            
             <div class="nav-item hidden" id="navDashboard">Dashboard</div>
+            <div class="nav-item" id="navAnalytics">Analytics</div>
             <div class="nav-item" id="navLogin">Login</div>
             <div class="nav-item" id="navRegister">Register</div>
             <div class="nav-item hidden" id="navLogout">Logout</div>
+
         </div>
     </nav>
 
@@ -90,6 +92,64 @@
                 <div id="documentsList"></div>
             </div>
         </div>
+        <div id="analytics" class="container hidden">
+            <h2>Analytics Dashboard</h2>
+            
+            <!-- User Stats Section -->
+            <div class="analytics-card">
+                <h3>Your Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <h4>Total Documents</h4>
+                        <p id="totalDocuments">0</p>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Total Scans</h4>
+                        <p id="totalScans">0</p>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Credits Used</h4>
+                        <p id="creditsUsed">0</p>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Active Days</h4>
+                        <p id="activeDays">0</p>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Activity Chart -->
+            <div class="analytics-card">
+                <h3>Recent Activity</h3>
+                <canvas id="activityChart"></canvas>
+            </div>
+        
+            <!-- Document Types -->
+            <div class="analytics-card">
+                <h3>Document Types</h3>
+                <div id="documentTypes" class="document-types-grid">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        
+            <!-- Recent Activity Table -->
+            <div class="analytics-card">
+                <h3>Recent Activity</h3>
+                <table class="activity-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Action</th>
+                            <th>Document</th>
+                            <th>Credits</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activityLog">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </main>
 
     <!-- Error/Success Messages -->
@@ -100,5 +160,7 @@
     <script src="/js/auth.js"></script>
     <script src="/js/dashboard.js"></script>
     <script src="/js/upload.js"></script>
+    <script src="/js/analytics.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

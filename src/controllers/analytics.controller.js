@@ -2,125 +2,90 @@
 const { db } = require('../database/init');
 
 class AnalyticsController {
-    // Get user's scanning statistics
     static async getUserStats(req, res) {
         try {
             const userId = req.userData.userId;
-            
+
+            // Get basic stats
             const stats = await new Promise((resolve, reject) => {
-                db.get(
-                    `SELECT 
-                        COUNT(s.id) as total_scans,
-                        COUNT(DISTINCT DATE(s.scan_date)) as active_days,
-                        (SELECT COUNT(*) FROM documents WHERE user_id = ?) as total_documents,
-                        (SELECT COUNT(*) 
-                         FROM scans 
-                         WHERE user_id = ? 
-                         AND DATE(scan_date) = DATE('now')) as today_scans
-                     FROM scans s
-                     WHERE s.user_id = ?`,
-                    [userId, userId, userId],
-                    (err, row) => {
-                        if (err) reject(err);
-                        resolve(row);
-                    }
-                );
-            });
-
-            res.json({ stats });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    }
-
-    // Get system-wide statistics (admin only)
-    static async getSystemStats(req, res) {
-        try {
-            if (req.userData.role !== 'admin') {
-                return res.status(403).json({ error: 'Admin access required' });
-            }
-
-            const stats = await new Promise((resolve, reject) => {
-                db.get(
-                    `SELECT 
-                        (SELECT COUNT(*) FROM users WHERE role != 'admin') as total_users,
-                        (SELECT COUNT(*) FROM documents) as total_documents,
-                        (SELECT COUNT(*) FROM scans) as total_scans,
-                        (SELECT COUNT(*) 
-                         FROM credit_requests 
-                         WHERE status = 'pending') as pending_requests,
-                        (SELECT COUNT(*) 
-                         FROM scans 
-                         WHERE DATE(scan_date) = DATE('now')) as today_scans
-                     FROM users`,
-                    [],
-                    (err, row) => {
-                        if (err) reject(err);
-                        resolve(row);
-                    }
-                );
-            });
-
-            // Get top users
-            const topUsers = await new Promise((resolve, reject) => {
-                db.all(
-                    `SELECT 
-                        u.username,
-                        COUNT(s.id) as scan_count
-                     FROM users u
-                     LEFT JOIN scans s ON u.id = s.user_id
-                     WHERE u.role != 'admin'
-                     GROUP BY u.id
-                     ORDER BY scan_count DESC
-                     LIMIT 5`,
-                    [],
-                    (err, rows) => {
-                        if (err) reject(err);
-                        resolve(rows);
-                    }
-                );
-            });
-
-            res.json({ 
-                systemStats: stats,
-                topUsers: topUsers
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    }
-
-    // Get document statistics
-    static async getDocumentStats(req, res) {
-        try {
-            const userId = req.userData.userId;
-            const isAdmin = req.userData.role === 'admin';
-
-            const query = isAdmin 
-                ? `SELECT 
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN DATE(upload_date) = DATE('now') THEN 1 END) as today,
-                    AVG(LENGTH(content)) as avg_length
-                   FROM documents`
-                : `SELECT 
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN DATE(upload_date) = DATE('now') THEN 1 END) as today,
-                    AVG(LENGTH(content)) as avg_length
-                   FROM documents
-                   WHERE user_id = ?`;
-
-            const params = isAdmin ? [] : [userId];
-
-            const stats = await new Promise((resolve, reject) => {
-                db.get(query, params, (err, row) => {
+                db.get(`
+                    SELECT 
+                        (SELECT COUNT(*) FROM documents WHERE user_id = ?) as totalDocuments,
+                        (SELECT COUNT(*) FROM scans WHERE user_id = ?) as totalScans,
+                        (SELECT COUNT(DISTINCT DATE(scan_date)) FROM scans WHERE user_id = ?) as activeDays,
+                        (SELECT COUNT(*) FROM credit_usage WHERE user_id = ?) as creditsUsed
+                    FROM users WHERE id = ?
+                `, [userId, userId, userId, userId, userId], (err, row) => {
                     if (err) reject(err);
                     resolve(row);
                 });
             });
 
-            res.json({ stats });
+            // Get activity for last 7 days
+            const activity = await new Promise((resolve, reject) => {
+                db.all(`
+                    SELECT 
+                        DATE(scan_date) as date,
+                        COUNT(*) as scans
+                    FROM scans 
+                    WHERE user_id = ? 
+                    AND scan_date >= date('now', '-7 days')
+                    GROUP BY DATE(scan_date)
+                    ORDER BY date
+                `, [userId], (err, rows) => {
+                    if (err) reject(err);
+                    resolve(rows);
+                });
+            });
+
+            // Get document types
+            const documentTypes = await new Promise((resolve, reject) => {
+                db.all(`
+                    SELECT 
+                        CASE 
+                            WHEN filename LIKE '%.pdf' THEN 'PDF'
+                            WHEN filename LIKE '%.txt' THEN 'Text'
+                            ELSE 'Other'
+                        END as type,
+                        COUNT(*) as count
+                    FROM documents 
+                    WHERE user_id = ?
+                    GROUP BY type
+                `, [userId], (err, rows) => {
+                    if (err) reject(err);
+                    resolve(rows);
+                });
+            });
+
+            // Get recent activity
+            const recentActivity = await new Promise((resolve, reject) => {
+                db.all(`
+                    SELECT 
+                        s.scan_date as date,
+                        'Scan' as action,
+                        d.filename as document,
+                        1 as credits
+                    FROM scans s
+                    JOIN documents d ON s.document_id = d.id
+                    WHERE s.user_id = ?
+                    ORDER BY s.scan_date DESC
+                    LIMIT 10
+                `, [userId], (err, rows) => {
+                    if (err) reject(err);
+                    resolve(rows);
+                });
+            });
+
+            res.json({
+                stats,
+                activity,
+                documentTypes,
+                recentActivity
+            });
+
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('Analytics error:', error);
+            res.status(500).json({ error: 'Error fetching analytics' });
         }
     }
 }

@@ -515,3 +515,96 @@ body {
     border-radius: 4px;
     margin: 10px;
 }
+/* Add to your styles.css */
+.analytics-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stat-item h4 {
+    margin: 0;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.stat-item p {
+    margin: 10px 0 0;
+    font-size: 2em;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.activity-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.activity-table th,
+.activity-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.activity-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+}
+
+.document-types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.document-type-item {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.document-type-item .count {
+    font-size: 1.5em;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+/* Add to styles.css */
+.nav-item {
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.nav-item:hover {
+    background-color: var(--bg-color);
+}
+
+.nav-item.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.hidden {
+    display: none !important;
+}

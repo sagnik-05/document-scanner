@@ -7,9 +7,11 @@ class AuthManager {
         this.navLogin = document.getElementById('navLogin');
         this.navRegister = document.getElementById('navRegister');
         this.navDashboard = document.getElementById('navDashboard');
+        this.navAnalytics = document.getElementById('navAnalytics');
         this.navLogout = document.getElementById('navLogout');
         this.authForms = document.getElementById('authForms');
         this.dashboard = document.getElementById('dashboard');
+        this.analytics = document.getElementById('analytics');
         this.switchToLoginLink = document.getElementById('switchToLogin');
         this.switchToRegisterLink = document.getElementById('switchToRegister');
         this.userWelcome = document.getElementById('userWelcome');
@@ -24,6 +26,8 @@ class AuthManager {
         // Navigation events
         this.navLogin.addEventListener('click', () => this.showLoginForm());
         this.navRegister.addEventListener('click', () => this.showRegisterForm());
+        this.navDashboard.addEventListener('click', () => this.showDashboard());
+        this.navAnalytics.addEventListener('click', () => this.showAnalytics());
         this.navLogout.addEventListener('click', () => this.handleLogout());
         
         // Form submission events
@@ -44,6 +48,8 @@ class AuthManager {
     showLoginForm() {
         document.getElementById('loginForm').classList.remove('hidden');
         document.getElementById('registerForm').classList.add('hidden');
+        this.dashboard.classList.add('hidden');
+        this.analytics.classList.add('hidden');
         this.navLogin.classList.add('active');
         this.navRegister.classList.remove('active');
     }
@@ -51,8 +57,34 @@ class AuthManager {
     showRegisterForm() {
         document.getElementById('loginForm').classList.add('hidden');
         document.getElementById('registerForm').classList.remove('hidden');
+        this.dashboard.classList.add('hidden');
+        this.analytics.classList.add('hidden');
         this.navLogin.classList.remove('active');
         this.navRegister.classList.add('active');
+    }
+
+    showDashboard() {
+        this.authForms.classList.add('hidden');
+        this.analytics.classList.add('hidden');
+        this.dashboard.classList.remove('hidden');
+        this.navDashboard.classList.add('active');
+        this.navAnalytics.classList.remove('active');
+        // Refresh dashboard data
+        if (window.DashboardManager) {
+            window.DashboardManager.refreshDashboard();
+        }
+    }
+
+    showAnalytics() {
+        this.authForms.classList.add('hidden');
+        this.dashboard.classList.add('hidden');
+        this.analytics.classList.remove('hidden');
+        this.navDashboard.classList.remove('active');
+        this.navAnalytics.classList.add('active');
+        // Refresh analytics data
+        if (window.AnalyticsManager) {
+            window.AnalyticsManager.loadAnalytics();
+        }
     }
 
     async handleLogin(e) {
@@ -117,10 +149,14 @@ class AuthManager {
     updateUIForLoggedInState(username) {
         this.authForms.classList.add('hidden');
         this.dashboard.classList.remove('hidden');
+        this.analytics.classList.add('hidden');
         this.navLogin.classList.add('hidden');
         this.navRegister.classList.add('hidden');
         this.navDashboard.classList.remove('hidden');
+        this.navAnalytics.classList.remove('hidden');
         this.navLogout.classList.remove('hidden');
+        this.navDashboard.classList.add('active');
+        this.navAnalytics.classList.remove('active');
         if (this.userWelcome) {
             this.userWelcome.textContent = username;
         }
@@ -129,10 +165,14 @@ class AuthManager {
     updateUIForLoggedOutState() {
         this.authForms.classList.remove('hidden');
         this.dashboard.classList.add('hidden');
+        this.analytics.classList.add('hidden');
         this.navLogin.classList.remove('hidden');
         this.navRegister.classList.remove('hidden');
         this.navDashboard.classList.add('hidden');
+        this.navAnalytics.classList.add('hidden');
         this.navLogout.classList.add('hidden');
+        this.navDashboard.classList.remove('active');
+        this.navAnalytics.classList.remove('active');
         this.showRegisterForm(); // Show register form by default
     }
 

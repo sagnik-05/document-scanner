@@ -32,6 +32,7 @@ try {
     const creditRoutes = require('./routes/credit.routes');
     const analyticsRoutes = require('./routes/analytics.routes');
     const documentRoutes = require('./routes/document.routes');
+    
 
 
     // Route middlewares
