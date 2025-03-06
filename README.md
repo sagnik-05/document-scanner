@@ -71,7 +71,7 @@ Welcome to the Document Scanner project! This project aims to provide a simple a
 
 ### Authentication Headers
 All endpoints except `/auth/register` and `/auth/login` require the following header:
-Authorization: Bearer <jwt_token>
+#### Authorization: Bearer <jwt_token>
 
 ## Installation
 
@@ -115,6 +115,5 @@ We welcome contributions to the Document Scanner project! To contribute, follow 
 
 ## Contact
 
-If you have any questions or suggestions, feel free to open an issue or contact the project maintainer at [your-email@example.com](mailto:your-email@example.com).
-
+If you have any questions or suggestions, feel free to open an issue or contact the project maintainer at sagnikpanda05@gmail.com
 Thank you for using Document Scanner!
